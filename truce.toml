@@ -1,0 +1,12 @@
+[vendor]
+name = "charlotte athena som"
+id = "codes.som.plugins"
+url = "https://som.codes/plugins"
+au_manufacturer = "CSom"
+
+[[plugin]]
+name = "char MIDI Monitor"
+bundle_id = "midi-monitor"
+crate = "midi-monitor"
+category = "instrument"
+fourcc = "MMon"

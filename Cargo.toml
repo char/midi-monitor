@@ -1,0 +1,47 @@
+[package]
+name = "midi-monitor"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[[bin]]
+name = "midi-monitor-standalone"
+path = "src/main.rs"
+required-features = ["standalone"]
+
+# Scaffolded default: CLAP + VST3 + standalone. To add LV2 / AU / AAX / VST2,
+# add the matching feature + optional dep below (e.g.
+# `lv2 = ["dep:truce-lv2"]` +
+# `truce-lv2 = { version = "0.57.2", optional = true }`).
+# Each format feature gates the matching wrapper crate as an optional
+# dep.
+[features]
+default = ["clap", "vst3", "standalone"]
+clap = ["dep:truce-clap", "dep:clap-sys"]
+vst3 = ["dep:truce-vst3"]
+standalone = ["dep:truce-standalone"]
+shell = ["truce/shell"]
+
+[dependencies]
+truce = "0.57.2"
+# Lightweight types for layout / theme / widget descriptions.
+truce-gui-types = "0.57.2"
+# Built-in renderer support used by truce-egui's window/platform glue.
+truce-gui = "0.57.2"
+truce-egui = "0.57.2"
+egui = { version = "0.34", default-features = false }
+truce-clap = { version = "0.57.2", optional = true }
+truce-vst3 = { version = "0.57.2", optional = true }
+truce-standalone = { version = "0.57.2", features = ["gui"], optional = true }
+clap-sys = { version = "0.5", optional = true }
+
+# Custom profile for `cargo truce install --shell`. The shell-mode
+# build (`cargo build --profile shell --features ...,shell`) lands the
+# shell binary at `target/shell/lib<crate>.dylib`, independent of
+# `target/release/` (where regular `cargo build --release` writes) and
+# `target/debug/` (where `cargo build` writes). Inherits release for
+# DSP perf parity.
+[profile.shell]
+inherits = "release"
