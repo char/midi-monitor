@@ -35,7 +35,7 @@ impl PlayedInterval {
     pub fn name(&self, spelling: &SpellingContext) -> String {
         format!(
             "{} {}",
-            spelling.pitch_name(self.root),
+            spelling.scale_pitch_name(self.root),
             interval_description(self.semitones)
         )
     }
@@ -94,15 +94,15 @@ pub fn format_analysis(analysis: &Analysis, spelling: &SpellingContext) -> Strin
     match analysis {
         Analysis::Chord(chord) => format_chord(chord, spelling),
         Analysis::Interval(interval) => interval.name(spelling),
-        Analysis::Note(pitch_class) => spelling.pitch_name(*pitch_class),
+        Analysis::Note(pitch_class) => spelling.scale_pitch_name(*pitch_class),
     }
 }
 
 pub fn format_chord(chord: &Chord, spelling: &SpellingContext) -> String {
-    let mut name = format!("{}{}", spelling.harmonic_pitch_name(chord.root), chord.suffix());
+    let mut name = format!("{}{}", spelling.scale_pitch_name(chord.root), chord.suffix());
     if let Some(bass) = chord.bass {
         name.push_str(" / ");
-        name.push_str(&spelling.harmonic_pitch_name(bass));
+        name.push_str(&spelling.scale_pitch_name(bass));
     }
     name
 }
@@ -232,7 +232,7 @@ mod tests {
 
         assert_eq!(analysis_name(&[62], None, &c_major), "Dm");
         assert_eq!(analysis_name(&[49], None, &c_major), "—");
-        assert_eq!(analysis_name(&[61], None, &c_major), "C#");
+        assert_eq!(analysis_name(&[61], None, &c_major), "Db");
         assert_eq!(analysis_name(&[60, 64], None, &c_major), "C major third");
         assert_eq!(analysis_name(&[60, 67], None, &c_major), "C perfect fifth");
         assert_eq!(analysis_name(&[60, 72], None, &c_major), "C octave");

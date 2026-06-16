@@ -217,7 +217,7 @@ fn draw_key_marks(
         painter.text(
             egui::pos2(label_x, label_y),
             egui::Align2::CENTER_CENTER,
-            spelling.pitch_name(pitch_class),
+            spelling.scale_pitch_name(pitch_class),
             egui::FontId::proportional(14.0),
             FOREGROUND,
         );

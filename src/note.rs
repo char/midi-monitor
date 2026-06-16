@@ -148,7 +148,7 @@ impl SpellingContext {
         self.spelling_for(pitch_class % 12).name()
     }
 
-    pub fn harmonic_pitch_name(&self, pitch_class: usize) -> String {
+    pub fn scale_pitch_name(&self, pitch_class: usize) -> String {
         let pitch_class = pitch_class % 12;
         let intervals = scale_intervals(self.scale);
         let root_name = self.pitch_name(self.root_pitch_class);
@@ -357,5 +357,18 @@ mod tests {
         assert_eq!(d_flat.pitch_name(0), "C");
         assert_eq!(g_flat.pitch_name(11), "Cb");
         assert_eq!(g_flat.note_name(71), "Cb4");
+    }
+
+    #[test]
+    fn scale_pitch_names_use_contextual_accidentals() {
+        let c_major = SpellingContext::new(RootNote::C, Scale::Major);
+        assert_eq!(c_major.pitch_name(1), "C#");
+        assert_eq!(c_major.scale_pitch_name(1), "Db");
+        assert_eq!(c_major.scale_pitch_name(6), "F#");
+
+        let c_minor = SpellingContext::new(RootNote::C, Scale::Minor);
+        assert_eq!(c_minor.scale_pitch_name(4), "E");
+        assert_eq!(c_minor.scale_pitch_name(9), "A");
+        assert_eq!(c_minor.scale_pitch_name(11), "B");
     }
 }
