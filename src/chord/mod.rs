@@ -9,6 +9,38 @@ use crate::note::{Scale, SpellingContext};
 
 use symbol::ChordSuffix;
 
+const BASS_NOTE_CUTOFF: usize = 60; // middle C
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Analysis {
+    Chord(Chord),
+    Interval(PlayedInterval),
+    Note(usize),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PlayedInterval {
+    root: usize,
+    semitones: usize,
+}
+
+impl PlayedInterval {
+    fn between(a: usize, b: usize) -> Self {
+        Self {
+            root: a.min(b) % 12,
+            semitones: a.abs_diff(b),
+        }
+    }
+
+    pub fn name(&self, spelling: &SpellingContext) -> String {
+        format!(
+            "{} {}",
+            spelling.pitch_name(self.root),
+            interval_description(self.semitones)
+        )
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Chord {
     pub root: usize,
@@ -34,12 +66,36 @@ impl Chord {
     }
 }
 
+pub fn identify_analysis_in_context(
+    notes: &[usize],
+    root_override: Option<usize>,
+    spelling: &SpellingContext,
+) -> Option<Analysis> {
+    let mut notes = notes.to_vec();
+    notes.sort_unstable();
+
+    match notes.as_slice() {
+        [] => None,
+        [note] => identify_single_note(*note, root_override, spelling),
+        [a, b] => Some(Analysis::Interval(PlayedInterval::between(*a, *b))),
+        _ => identify_chord_in_context(&notes, root_override, spelling).map(Analysis::Chord),
+    }
+}
+
 pub fn identify_chord_in_context(
     notes: &[usize],
     root_override: Option<usize>,
     spelling: &SpellingContext,
 ) -> Option<Chord> {
     detect::identify_chord_with_context(notes, root_override, Some(spelling))
+}
+
+pub fn format_analysis(analysis: &Analysis, spelling: &SpellingContext) -> String {
+    match analysis {
+        Analysis::Chord(chord) => format_chord(chord, spelling),
+        Analysis::Interval(interval) => interval.name(spelling),
+        Analysis::Note(pitch_class) => spelling.pitch_name(*pitch_class),
+    }
 }
 
 pub fn format_chord(chord: &Chord, spelling: &SpellingContext) -> String {
@@ -55,11 +111,91 @@ pub fn roman_numeral(chord: &Chord, key_root: usize, scale: Scale) -> Option<Str
     roman::roman_numeral(chord, key_root, scale)
 }
 
+fn identify_single_note(note: usize, root_override: Option<usize>, spelling: &SpellingContext) -> Option<Analysis> {
+    if let Some(chord) = identify_chord_in_context(&[note], root_override, spelling) {
+        return Some(Analysis::Chord(chord));
+    }
+
+    (note >= BASS_NOTE_CUTOFF).then_some(Analysis::Note(note % 12))
+}
+
+fn interval_description(semitones: usize) -> String {
+    let octaves = semitones / 12;
+    let (names, fallback) = match semitones % 12 {
+        0 => (&["unison", "octave", "double octave", "triple octave"][..], None),
+        1 => (
+            &["minor second", "minor ninth", "minor sixteenth"][..],
+            Some(("minor", 2)),
+        ),
+        2 => (
+            &["major second", "major ninth", "major sixteenth"][..],
+            Some(("major", 2)),
+        ),
+        3 => (
+            &["minor third", "minor tenth", "minor seventeenth"][..],
+            Some(("minor", 3)),
+        ),
+        4 => (
+            &["major third", "major tenth", "major seventeenth"][..],
+            Some(("major", 3)),
+        ),
+        5 => (
+            &["perfect fourth", "perfect eleventh", "perfect eighteenth"][..],
+            Some(("perfect", 4)),
+        ),
+        6 => return "tritone".to_owned(),
+        7 => (
+            &["perfect fifth", "perfect twelfth", "perfect nineteenth"][..],
+            Some(("perfect", 5)),
+        ),
+        8 => (
+            &["minor sixth", "minor thirteenth", "minor twentieth"][..],
+            Some(("minor", 6)),
+        ),
+        9 => (
+            &["major sixth", "major thirteenth", "major twentieth"][..],
+            Some(("major", 6)),
+        ),
+        10 => (
+            &["minor seventh", "minor fourteenth", "minor twenty-first"][..],
+            Some(("minor", 7)),
+        ),
+        11 => (
+            &["major seventh", "major fourteenth", "major twenty-first"][..],
+            Some(("major", 7)),
+        ),
+        _ => unreachable!(),
+    };
+
+    if let Some(name) = names.get(octaves) {
+        return (*name).to_owned();
+    }
+
+    let Some((quality, simple_number)) = fallback else {
+        return format!("{octaves} octaves");
+    };
+
+    let number = simple_number + octaves * 7;
+    let suffix = if matches!(number % 100, 11..=13) {
+        "th"
+    } else {
+        match number % 10 {
+            1 => "st",
+            2 => "nd",
+            3 => "rd",
+            _ => "th",
+        }
+    };
+    format!("{quality} {number}{suffix}")
+}
+
 #[cfg(test)]
 mod tests {
     use crate::note::{RootNote, Scale, SpellingContext};
 
-    use super::{format_chord, identify_chord_in_context, roman_numeral};
+    use super::{
+        format_analysis, format_chord, identify_analysis_in_context, identify_chord_in_context, roman_numeral,
+    };
 
     #[test]
     fn identifies_representative_chords() {
@@ -91,6 +227,19 @@ mod tests {
     }
 
     #[test]
+    fn labels_single_notes_and_intervals() {
+        let c_major = SpellingContext::new(RootNote::C, Scale::Major);
+
+        assert_eq!(analysis_name(&[62], None, &c_major), "Dm");
+        assert_eq!(analysis_name(&[49], None, &c_major), "—");
+        assert_eq!(analysis_name(&[61], None, &c_major), "C#");
+        assert_eq!(analysis_name(&[60, 64], None, &c_major), "C major third");
+        assert_eq!(analysis_name(&[60, 67], None, &c_major), "C perfect fifth");
+        assert_eq!(analysis_name(&[60, 72], None, &c_major), "C octave");
+        assert_eq!(analysis_name(&[60, 76], None, &c_major), "C major tenth");
+    }
+
+    #[test]
     fn identifies_representative_roman_numerals() {
         let c_major = SpellingContext::new(RootNote::C, Scale::Major);
         for (expected, notes, root) in [
@@ -106,6 +255,12 @@ mod tests {
     fn chord_name(notes: &[usize], root: Option<usize>, spelling: &SpellingContext) -> String {
         identify_chord_in_context(notes, root, spelling)
             .map(|chord| format_chord(&chord, spelling))
+            .unwrap_or_else(|| "—".to_owned())
+    }
+
+    fn analysis_name(notes: &[usize], root: Option<usize>, spelling: &SpellingContext) -> String {
+        identify_analysis_in_context(notes, root, spelling)
+            .map(|analysis| format_analysis(&analysis, spelling))
             .unwrap_or_else(|| "—".to_owned())
     }
 

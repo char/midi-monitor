@@ -1,4 +1,4 @@
-use crate::chord::{Chord, format_chord, identify_chord_in_context, roman_numeral};
+use crate::chord::{Analysis, format_analysis, identify_analysis_in_context, roman_numeral};
 use crate::note::{SpellingContext, is_white_key, scale_intervals};
 use crate::{MidiMonitorParams, MidiMonitorParamsParamId as P, NOTE_COUNT, note_meter_id};
 use truce::prelude::*;
@@ -40,7 +40,7 @@ pub fn draw_editor(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) 
         .filter(|note| state.get_meter(note_meter_id(*note)) > 0.0)
         .collect();
     let root_override = state.chord_root.value().pitch_class();
-    let chord = identify_chord_in_context(&active_notes, root_override, &spelling);
+    let analysis = identify_analysis_in_context(&active_notes, root_override, &spelling);
 
     ui.painter().rect_filled(ui.max_rect(), 0.0, BACKGROUND);
     ui.spacing_mut().item_spacing = egui::vec2(8.0, 6.0);
@@ -58,7 +58,7 @@ pub fn draw_editor(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) 
             ui.set_min_height(top_height);
             top_bar(ui, state);
             ui.add_space(10.0);
-            chord_panel(ui, chord.as_ref(), &spelling);
+            chord_panel(ui, analysis.as_ref(), &spelling);
         });
     draw_piano(ui, state, &spelling);
 }
@@ -73,18 +73,18 @@ fn top_bar(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) {
     });
 }
 
-fn chord_panel(ui: &mut egui::Ui, chord: Option<&Chord>, spelling: &SpellingContext) {
+fn chord_panel(ui: &mut egui::Ui, analysis: Option<&Analysis>, spelling: &SpellingContext) {
     let side_padding = ui.available_width() * 0.33;
     ui.horizontal(|ui| {
         ui.add_space(side_padding);
         ui.vertical(|ui| {
             ui.label(
-                egui::RichText::new(chord_name(chord, spelling))
+                egui::RichText::new(analysis_name(analysis, spelling))
                     .size(42.0)
                     .strong()
                     .color(FOREGROUND),
             );
-            if let Some(chord) = chord
+            if let Some(Analysis::Chord(chord)) = analysis
                 && let Some(roman) = roman_numeral(chord, spelling.root_pitch_class, spelling.scale)
             {
                 ui.add_space(2.0);
@@ -246,11 +246,11 @@ fn is_diatonic(pitch_class: usize, spelling: &SpellingContext) -> bool {
         .any(|interval| (spelling.root_pitch_class + interval) % 12 == pitch_class)
 }
 
-fn chord_name(chord: Option<&Chord>, spelling: &SpellingContext) -> String {
-    let Some(chord) = chord else {
+fn analysis_name(analysis: Option<&Analysis>, spelling: &SpellingContext) -> String {
+    let Some(analysis) = analysis else {
         return String::new();
     };
-    format_chord(chord, spelling)
+    format_analysis(analysis, spelling)
 }
 
 fn root_dropdown(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) {
