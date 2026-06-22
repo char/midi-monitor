@@ -19,6 +19,10 @@ pub struct MidiMonitorParams {
     pub scale: EnumParam<Scale>,
     #[param(name = "Chord Root", default = 0)]
     pub chord_root: EnumParam<ChordRoot>,
+    #[param(name = "Chord Label", default = true)]
+    pub chord_label: BoolParam,
+    #[param(name = "Piano", default = true)]
+    pub piano: BoolParam,
     #[meter]
     pub meter_seed: MeterSlot,
 }
@@ -102,6 +106,7 @@ impl PluginLogic for MidiMonitor {
         EguiEditor::new(self.params.clone(), (960, 288), draw_editor)
             .with_visuals(visuals())
             .with_font(INTER_REGULAR)
+            .resizable(true)
             .into_editor()
     }
 }

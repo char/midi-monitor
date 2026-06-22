@@ -5,7 +5,9 @@ use truce::prelude::*;
 
 const PIANO_LOW_NOTE: usize = 21;
 const PIANO_HIGH_NOTE: usize = 108;
-const PIANO_HEIGHT: f32 = 120.0;
+const NOTE_LABEL_HEIGHT: f32 = 22.0;
+const PIANO_KEY_HEIGHT: f32 = 120.0;
+const PIANO_HEIGHT: f32 = NOTE_LABEL_HEIGHT + PIANO_KEY_HEIGHT;
 
 const BACKGROUND: egui::Color32 = egui::Color32::from_rgb(18, 18, 20);
 const FOREGROUND: egui::Color32 = egui::Color32::from_rgb(238, 238, 240);
@@ -36,11 +38,16 @@ pub fn visuals() -> egui::Visuals {
 
 pub fn draw_editor(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) {
     let spelling = SpellingContext::new(state.root.value(), state.scale.value());
-    let active_notes: Vec<_> = (0..NOTE_COUNT)
-        .filter(|note| state.get_meter(note_meter_id(*note)) > 0.0)
-        .collect();
-    let root_override = state.chord_root.value().pitch_class();
-    let analysis = identify_analysis_in_context(&active_notes, root_override, &spelling);
+    let show_chord_label = state.chord_label.value();
+    let show_piano = state.piano.value();
+    let analysis = if show_chord_label {
+        let active_notes: Vec<_> = (0..NOTE_COUNT)
+            .filter(|note| state.get_meter(note_meter_id(*note)) > 0.0)
+            .collect();
+        identify_analysis_in_context(&active_notes, state.chord_root.value().pitch_class(), &spelling)
+    } else {
+        None
+    };
 
     ui.painter().rect_filled(ui.max_rect(), 0.0, BACKGROUND);
     ui.spacing_mut().item_spacing = egui::vec2(8.0, 6.0);
@@ -51,54 +58,85 @@ pub fn draw_editor(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) 
         .text_styles
         .insert(egui::TextStyle::Button, egui::FontId::proportional(11.0));
 
-    let top_height = (ui.available_height() - PIANO_HEIGHT - 24.0).max(0.0);
+    let reserved_piano_height = if show_piano && show_chord_label {
+        PIANO_HEIGHT + 24.0
+    } else {
+        0.0
+    };
+    let top_height = if show_chord_label {
+        (ui.available_height() - reserved_piano_height).max(0.0)
+    } else {
+        0.0
+    };
+
     egui::Frame::NONE
         .inner_margin(egui::Margin::symmetric(12, 12))
         .show(ui, |ui| {
             ui.set_min_height(top_height);
             top_bar(ui, state);
-            ui.add_space(10.0);
-            chord_panel(ui, analysis.as_ref(), &spelling);
+            if show_chord_label {
+                ui.add_space(10.0);
+                chord_panel(ui, analysis.as_ref(), &spelling);
+            }
         });
-    draw_piano(ui, state, &spelling);
+
+    if show_piano {
+        let piano_height = if show_chord_label {
+            PIANO_HEIGHT
+        } else {
+            ui.available_height()
+        };
+        draw_piano(ui, state, &spelling, piano_height);
+    }
 }
 
 fn top_bar(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) {
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.label(egui::RichText::new("charlotte's midi monitor").size(14.5).color(MUTED));
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            param_dropdown(ui, state, P::Scale.as_u32());
-            root_dropdown(ui, state);
-        });
+        ui.separator();
+        root_dropdown(ui, state);
+        param_dropdown(ui, state, P::Scale.as_u32());
     });
 }
 
 fn chord_panel(ui: &mut egui::Ui, analysis: Option<&Analysis>, spelling: &SpellingContext) {
-    let side_padding = ui.available_width() * 0.33;
-    ui.horizontal(|ui| {
-        ui.add_space(side_padding);
-        ui.vertical(|ui| {
-            ui.label(
-                egui::RichText::new(analysis_name(analysis, spelling))
-                    .size(42.0)
-                    .strong()
-                    .color(FOREGROUND),
-            );
-            if let Some(Analysis::Chord(chord)) = analysis
-                && let Some(roman) = roman_numeral(chord, spelling.root_pitch_class, spelling.scale)
-            {
-                ui.add_space(2.0);
-                ui.label(egui::RichText::new(roman).size(18.0).color(MUTED));
-            }
-        });
+    let width = ui.available_width().max(0.0);
+    let name_size = (width * 0.12).clamp(20.0, 42.0);
+    let roman_size = (name_size * 0.43).clamp(12.0, 18.0);
+
+    ui.vertical_centered(|ui| {
+        ui.label(
+            egui::RichText::new(analysis_name(analysis, spelling))
+                .size(name_size)
+                .strong()
+                .color(FOREGROUND),
+        );
+        if let Some(Analysis::Chord(chord)) = analysis
+            && let Some(roman) = roman_numeral(chord, spelling.root_pitch_class, spelling.scale)
+        {
+            ui.add_space(2.0);
+            ui.label(egui::RichText::new(roman).size(roman_size).color(MUTED));
+        }
     });
 }
 
-fn draw_piano(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>, spelling: &SpellingContext) {
-    let desired = egui::vec2(ui.available_width(), ui.available_height().min(PIANO_HEIGHT));
+fn draw_piano(
+    ui: &mut egui::Ui,
+    state: &PluginContext<MidiMonitorParams>,
+    spelling: &SpellingContext,
+    max_height: f32,
+) {
+    let desired = egui::vec2(
+        ui.available_width().max(0.0),
+        ui.available_height().min(max_height).max(0.0),
+    );
+    if desired.x <= 0.0 || desired.y <= 0.0 {
+        return;
+    }
+
     let (rect, _) = ui.allocate_exact_size(desired, egui::Sense::hover());
     let painter = ui.painter_at(rect);
-    let label_h = 22.0;
+    let label_h = NOTE_LABEL_HEIGHT.min(rect.height() * 0.4);
     let keys = egui::Rect::from_min_max(egui::pos2(rect.left(), rect.top() + label_h), rect.right_bottom());
     let white_count = (PIANO_LOW_NOTE..=PIANO_HIGH_NOTE)
         .filter(|note| is_white_key(note % 12))
