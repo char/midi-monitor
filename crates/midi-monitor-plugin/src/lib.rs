@@ -1,10 +1,9 @@
 pub const NOTE_COUNT: usize = 128;
 
-mod chord;
-mod note;
+mod params;
 mod ui;
 
-use note::{ChordRoot, RootNote, Scale};
+use params::{ChordRootParam, RootNoteParam, ScaleParam};
 use truce::prelude::*;
 use truce_egui::EguiEditor;
 use ui::{draw_editor, visuals};
@@ -14,11 +13,11 @@ const INTER_REGULAR: &[u8] = include_bytes!("../assets/fonts/Inter-Regular.ttf")
 #[derive(Params)]
 pub struct MidiMonitorParams {
     #[param(name = "Root", default = 0)]
-    pub root: EnumParam<RootNote>,
+    pub root: EnumParam<RootNoteParam>,
     #[param(name = "Scale", default = 0)]
-    pub scale: EnumParam<Scale>,
+    pub scale: EnumParam<ScaleParam>,
     #[param(name = "Chord Root", default = 0)]
-    pub chord_root: EnumParam<ChordRoot>,
+    pub chord_root: EnumParam<ChordRootParam>,
     #[param(name = "Chord Label", default = true)]
     pub chord_label: BoolParam,
     #[param(name = "Piano", default = true)]

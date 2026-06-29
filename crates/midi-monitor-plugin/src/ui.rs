@@ -1,6 +1,7 @@
-use crate::chord::{Analysis, format_analysis, identify_analysis_in_context, roman_numeral};
-use crate::note::{SpellingContext, is_white_key, scale_intervals};
 use crate::{MidiMonitorParams, MidiMonitorParamsParamId as P, NOTE_COUNT, note_meter_id};
+use midi_monitor_chord_detection::{
+    Analysis, SpellingContext, format_analysis, identify_analysis_in_context, roman_numeral, scale_intervals,
+};
 use truce::prelude::*;
 
 const PIANO_LOW_NOTE: usize = 21;
@@ -37,7 +38,7 @@ pub fn visuals() -> egui::Visuals {
 }
 
 pub fn draw_editor(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) {
-    let spelling = SpellingContext::new(state.root.value(), state.scale.value());
+    let spelling = SpellingContext::new(state.root.value().into(), state.scale.value().into());
     let show_chord_label = state.chord_label.value();
     let show_piano = state.piano.value();
     let analysis = if show_chord_label {
@@ -276,6 +277,10 @@ fn key_color(velocity: f32, diatonic: bool) -> egui::Color32 {
     } else {
         egui::Color32::TRANSPARENT
     }
+}
+
+fn is_white_key(pitch_class: usize) -> bool {
+    matches!(pitch_class % 12, 0 | 2 | 4 | 5 | 7 | 9 | 11)
 }
 
 fn is_diatonic(pitch_class: usize, spelling: &SpellingContext) -> bool {

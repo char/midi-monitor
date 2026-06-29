@@ -987,6 +987,7 @@ version = "0.1.0"
 dependencies = [
  "clap-sys",
  "egui",
+ "midi-monitor-chord-detection",
  "truce",
  "truce-clap",
  "truce-egui",
@@ -995,6 +996,10 @@ dependencies = [
  "truce-standalone",
  "truce-vst3",
 ]
+
+[[package]]
+name = "midi-monitor-chord-detection"
+version = "0.1.0"
 
 [[package]]
 name = "midir"

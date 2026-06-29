@@ -14,6 +14,7 @@ const BASS_NOTE_CUTOFF: usize = 60; // middle C
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Analysis {
     Chord(Chord),
+    UnknownChord(usize),
     Interval(PlayedInterval),
     Note(usize),
 }
@@ -93,6 +94,7 @@ pub fn identify_chord_in_context(
 pub fn format_analysis(analysis: &Analysis, spelling: &SpellingContext) -> String {
     match analysis {
         Analysis::Chord(chord) => format_chord(chord, spelling),
+        Analysis::UnknownChord(root) => format!("{} ?", spelling.scale_pitch_name(*root)),
         Analysis::Interval(interval) => interval.name(spelling),
         Analysis::Note(pitch_class) => spelling.scale_pitch_name(*pitch_class),
     }
@@ -116,54 +118,39 @@ fn identify_single_note(note: usize, root_override: Option<usize>, spelling: &Sp
         return Some(Analysis::Chord(chord));
     }
 
-    (note >= BASS_NOTE_CUTOFF).then_some(Analysis::Note(note % 12))
+    if note >= BASS_NOTE_CUTOFF {
+        Some(Analysis::Note(note % 12))
+    } else {
+        Some(Analysis::UnknownChord(root_override.unwrap_or(note % 12)))
+    }
 }
 
 fn interval_description(semitones: usize) -> String {
     let octaves = semitones / 12;
-    let (names, fallback) = match semitones % 12 {
-        0 => (&["unison", "octave", "double octave", "triple octave"][..], None),
-        1 => (
-            &["minor second", "minor ninth", "minor sixteenth"][..],
-            Some(("minor", 2)),
-        ),
-        2 => (
-            &["major second", "major ninth", "major sixteenth"][..],
-            Some(("major", 2)),
-        ),
-        3 => (
-            &["minor third", "minor tenth", "minor seventeenth"][..],
-            Some(("minor", 3)),
-        ),
-        4 => (
-            &["major third", "major tenth", "major seventeenth"][..],
-            Some(("major", 3)),
-        ),
-        5 => (
-            &["perfect fourth", "perfect eleventh", "perfect eighteenth"][..],
-            Some(("perfect", 4)),
-        ),
-        6 => return "tritone".to_owned(),
-        7 => (
-            &["perfect fifth", "perfect twelfth", "perfect nineteenth"][..],
-            Some(("perfect", 5)),
-        ),
-        8 => (
-            &["minor sixth", "minor thirteenth", "minor twentieth"][..],
-            Some(("minor", 6)),
-        ),
-        9 => (
-            &["major sixth", "major thirteenth", "major twentieth"][..],
-            Some(("major", 6)),
-        ),
-        10 => (
-            &["minor seventh", "minor fourteenth", "minor twenty-first"][..],
-            Some(("minor", 7)),
-        ),
-        11 => (
-            &["major seventh", "major fourteenth", "major twenty-first"][..],
-            Some(("major", 7)),
-        ),
+    let simple = semitones % 12;
+
+    if simple == 0 {
+        return match octaves {
+            0 => "unison".to_owned(),
+            1 => "octave".to_owned(),
+            2 => "double octave".to_owned(),
+            3 => "triple octave".to_owned(),
+            _ => format!("{octaves} octaves"),
+        };
+    }
+
+    let names = match simple {
+        1 => &["minor second", "minor ninth"][..],
+        2 => &["major second", "major ninth"][..],
+        3 => &["minor third", "minor tenth"][..],
+        4 => &["major third", "major tenth"][..],
+        5 => &["perfect fourth", "perfect eleventh"][..],
+        6 => &["tritone"][..],
+        7 => &["perfect fifth", "perfect twelfth"][..],
+        8 => &["minor sixth", "minor thirteenth"][..],
+        9 => &["major sixth", "major thirteenth"][..],
+        10 => &["minor seventh"][..],
+        11 => &["major seventh"][..],
         _ => unreachable!(),
     };
 
@@ -171,22 +158,8 @@ fn interval_description(semitones: usize) -> String {
         return (*name).to_owned();
     }
 
-    let Some((quality, simple_number)) = fallback else {
-        return format!("{octaves} octaves");
-    };
-
-    let number = simple_number + octaves * 7;
-    let suffix = if matches!(number % 100, 11..=13) {
-        "th"
-    } else {
-        match number % 10 {
-            1 => "st",
-            2 => "nd",
-            3 => "rd",
-            _ => "th",
-        }
-    };
-    format!("{quality} {number}{suffix}")
+    let octave_label = if octaves == 1 { "octave" } else { "octaves" };
+    format!("{} + {octaves} {octave_label}", names[0])
 }
 
 #[cfg(test)]
@@ -231,12 +204,15 @@ mod tests {
         let c_major = SpellingContext::new(RootNote::C, Scale::Major);
 
         assert_eq!(analysis_name(&[62], None, &c_major), "Dm");
-        assert_eq!(analysis_name(&[49], None, &c_major), "—");
+        assert_eq!(analysis_name(&[49], None, &c_major), "Db ?");
         assert_eq!(analysis_name(&[61], None, &c_major), "Db");
         assert_eq!(analysis_name(&[60, 64], None, &c_major), "C major third");
         assert_eq!(analysis_name(&[60, 67], None, &c_major), "C perfect fifth");
         assert_eq!(analysis_name(&[60, 72], None, &c_major), "C octave");
         assert_eq!(analysis_name(&[60, 76], None, &c_major), "C major tenth");
+        assert_eq!(analysis_name(&[60, 81], None, &c_major), "C major thirteenth");
+        assert_eq!(analysis_name(&[60, 82], None, &c_major), "C minor seventh + 1 octave");
+        assert_eq!(analysis_name(&[60, 112], None, &c_major), "C major third + 4 octaves");
     }
 
     #[test]

@@ -4,4 +4,4 @@
 /.cargo/config.toml
 
 /vendor
-/src/chord_test.rs
+/crates/chord-detection/src/chord_test.rs

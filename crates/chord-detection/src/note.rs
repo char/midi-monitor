@@ -1,59 +1,25 @@
-use truce::prelude::*;
-
-#[derive(ParamEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RootNote {
     C,
-    #[name = "C#"]
     CSharp,
-    #[name = "Db"]
     DFlat,
     D,
-    #[name = "D#"]
     DSharp,
-    #[name = "Eb"]
     EFlat,
     E,
     F,
-    #[name = "F#"]
     FSharp,
-    #[name = "Gb"]
     GFlat,
     G,
-    #[name = "G#"]
     GSharp,
-    #[name = "Ab"]
     AFlat,
     A,
-    #[name = "A#"]
     ASharp,
-    #[name = "Bb"]
     BFlat,
     B,
 }
 
-#[derive(ParamEnum)]
-pub enum ChordRoot {
-    None,
-    C,
-    #[name = "C#"]
-    CSharp,
-    D,
-    #[name = "D#"]
-    DSharp,
-    E,
-    F,
-    #[name = "F#"]
-    FSharp,
-    G,
-    #[name = "G#"]
-    GSharp,
-    A,
-    #[name = "A#"]
-    ASharp,
-    B,
-}
-
-#[derive(ParamEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Scale {
     Chromatic,
     Major,
@@ -63,9 +29,7 @@ pub enum Scale {
     Lydian,
     Mixolydian,
     Locrian,
-    #[name = "Harmonic Minor"]
     HarmonicMinor,
-    #[name = "Phrygian Dominant"]
     PhrygianDominant,
 }
 
@@ -233,26 +197,6 @@ impl RootNote {
     }
 }
 
-impl ChordRoot {
-    pub fn pitch_class(self) -> Option<usize> {
-        match self {
-            Self::None => None,
-            Self::C => Some(0),
-            Self::CSharp => Some(1),
-            Self::D => Some(2),
-            Self::DSharp => Some(3),
-            Self::E => Some(4),
-            Self::F => Some(5),
-            Self::FSharp => Some(6),
-            Self::G => Some(7),
-            Self::GSharp => Some(8),
-            Self::A => Some(9),
-            Self::ASharp => Some(10),
-            Self::B => Some(11),
-        }
-    }
-}
-
 fn best_spelling(pitch_class: usize, prefer_flats: bool) -> NoteSpelling {
     (0..7)
         .map(|letter| NoteSpelling::for_pitch_class(letter, pitch_class))
@@ -307,10 +251,6 @@ fn scale_letter_steps(scale: Scale) -> Option<&'static [usize]> {
         Scale::Chromatic => None,
         _ => Some(&[0, 1, 2, 3, 4, 5, 6]),
     }
-}
-
-pub fn is_white_key(pitch_class: usize) -> bool {
-    matches!(pitch_class % 12, 0 | 2 | 4 | 5 | 7 | 9 | 11)
 }
 
 pub fn semitone_delta(from: usize, to: usize) -> i8 {
