@@ -8,21 +8,6 @@ use super::{
     templates::{TEMPLATES, Template, scale_triad},
 };
 
-#[derive(Clone, Debug)]
-struct Candidate {
-    root: usize,
-    bass: Option<usize>,
-    suffix: ChordSuffix,
-    score: i32,
-}
-
-impl Candidate {
-    fn chord(self) -> Chord {
-        Chord::new(self.root, self.bass, self.suffix)
-    }
-}
-
-#[derive(Clone)]
 pub struct Notes {
     pub notes: Vec<usize>,
     pub pitch_classes: Vec<usize>,
@@ -47,10 +32,6 @@ impl Notes {
             bass_note,
             bass,
         })
-    }
-
-    pub fn intervals(&self, root: usize) -> Intervals {
-        Intervals::from_pitch_classes(self.pitch_classes.iter().copied(), root)
     }
 
     pub fn lowest_root(&self, root: usize) -> Option<usize> {
@@ -130,10 +111,6 @@ impl<'a> FormulaMatch<'a> {
             bass,
         })
     }
-
-    pub fn missing_essentials(&self) -> u16 {
-        self.missing_required & !bit(0)
-    }
 }
 
 pub fn identify_chord_with_context(
@@ -151,48 +128,46 @@ pub fn identify_chord_with_context(
         .roots(forced, spelling)
         .into_iter()
         .flat_map(|root| candidates_for_root(&notes, root, forced.is_some(), spelling))
-        .min_by_key(|candidate| candidate.score)
-        .map(Candidate::chord)
+        .min_by_key(|(score, _)| *score)
+        .map(|(_, chord)| chord)
 }
 
 fn single_note_chord(notes: &Notes, forced_root: Option<usize>, spelling: Option<&SpellingContext>) -> Option<Chord> {
     let root = forced_root.unwrap_or(notes.bass);
-    let base = spelling.and_then(|spelling| scale_triad(root, spelling))?;
-
-    Some(Chord::new(
-        root,
-        (notes.bass != root).then_some(notes.bass),
-        ChordSuffix::bare(base),
-    ))
+    spelling
+        .and_then(|spelling| scale_triad(root, spelling))
+        .map(|base| Chord {
+            root,
+            bass: (notes.bass != root).then_some(notes.bass),
+            suffix: ChordSuffix::bare(base),
+        })
 }
 
-fn candidates_for_root(notes: &Notes, root: usize, forced: bool, spelling: Option<&SpellingContext>) -> Vec<Candidate> {
-    let intervals = notes.intervals(root);
+fn candidates_for_root(
+    notes: &Notes,
+    root: usize,
+    forced: bool,
+    spelling: Option<&SpellingContext>,
+) -> Vec<(i32, Chord)> {
+    let intervals = Intervals::from_pitch_classes(notes.pitch_classes.iter().copied(), root);
     if !forced && !intervals.has(0) && notes.pitch_classes.len() > 1 {
         return Vec::new();
     }
 
     TEMPLATES
         .iter()
-        .filter_map(|template| candidate(notes, root, intervals, template, forced, spelling))
+        .filter_map(|template| {
+            let matched = FormulaMatch::new(notes, root, intervals, template, forced)?;
+            let score = score_candidate(&matched, forced, spelling);
+
+            Some((
+                score,
+                Chord {
+                    root,
+                    bass: matched.bass,
+                    suffix: matched.suffix,
+                },
+            ))
+        })
         .collect()
-}
-
-fn candidate(
-    notes: &Notes,
-    root: usize,
-    intervals: Intervals,
-    template: &Template,
-    forced: bool,
-    spelling: Option<&SpellingContext>,
-) -> Option<Candidate> {
-    let matched = FormulaMatch::new(notes, root, intervals, template, forced)?;
-    let score = score_candidate(&matched, forced, spelling);
-
-    Some(Candidate {
-        root,
-        bass: matched.bass,
-        suffix: matched.suffix,
-        score,
-    })
 }

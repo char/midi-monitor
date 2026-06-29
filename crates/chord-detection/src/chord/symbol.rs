@@ -227,16 +227,14 @@ fn modifier_labels(modifiers: &[Modifier]) -> Vec<&'static str> {
     let strip_add = strip_add_modifier_prefixes(modifiers);
     modifiers
         .iter()
-        .map(|modifier| modifier_label(*modifier, strip_add))
+        .map(|modifier| {
+            if strip_add {
+                modifier.label_without_add()
+            } else {
+                modifier.label()
+            }
+        })
         .collect()
-}
-
-fn modifier_label(modifier: Modifier, strip_add: bool) -> &'static str {
-    if strip_add {
-        modifier.label_without_add()
-    } else {
-        modifier.label()
-    }
 }
 
 fn strip_add_modifier_prefixes(modifiers: &[Modifier]) -> bool {
@@ -248,14 +246,6 @@ pub struct SuffixMetrics {
     pub len: i32,
     pub spaces: i32,
     pub add_count: i32,
-}
-
-fn suffix_metrics(suffix: &str) -> SuffixMetrics {
-    SuffixMetrics {
-        len: suffix.len() as i32,
-        spaces: suffix.bytes().filter(|byte| *byte == b' ').count() as i32,
-        add_count: suffix.matches("add").count() as i32,
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -313,7 +303,12 @@ impl ChordSuffix {
     }
 
     pub fn rendered_metrics(&self) -> SuffixMetrics {
-        suffix_metrics(&self.render())
+        let suffix = self.render();
+        SuffixMetrics {
+            len: suffix.len() as i32,
+            spaces: suffix.bytes().filter(|byte| *byte == b' ').count() as i32,
+            add_count: suffix.matches("add").count() as i32,
+        }
     }
 
     fn renders_single_modifier_inline(&self) -> bool {

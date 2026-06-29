@@ -50,10 +50,6 @@ pub struct Chord {
 }
 
 impl Chord {
-    fn new(root: usize, bass: Option<usize>, suffix: ChordSuffix) -> Self {
-        Self { root, bass, suffix }
-    }
-
     pub fn suffix(&self) -> String {
         self.suffix.to_string()
     }
