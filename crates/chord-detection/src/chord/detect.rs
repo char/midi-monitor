@@ -140,6 +140,7 @@ fn single_note_chord(notes: &Notes, forced_root: Option<usize>, spelling: Option
             root,
             bass: (notes.bass != root).then_some(notes.bass),
             suffix: ChordSuffix::bare(base),
+            pitch_classes: notes.pitch_classes.clone(),
         })
 }
 
@@ -166,6 +167,7 @@ fn candidates_for_root(
                     root,
                     bass: matched.bass,
                     suffix: matched.suffix,
+                    pitch_classes: notes.pitch_classes.clone(),
                 },
             ))
         })

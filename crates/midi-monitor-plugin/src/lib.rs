@@ -22,6 +22,8 @@ pub struct MidiMonitorParams {
     pub chord_label: BoolParam,
     #[param(name = "Piano", default = true)]
     pub piano: BoolParam,
+    #[param(name = "Chord Scale", default = false)]
+    pub chord_scale: BoolParam,
     #[meter]
     pub meter_seed: MeterSlot,
 }

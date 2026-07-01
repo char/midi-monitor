@@ -134,9 +134,9 @@ fn bass_score(notes: &Notes, root: usize, bass: Option<usize>) -> i32 {
     let interval = (bass + 12 - root) % 12;
     let slash = 5;
     let register = when(
-        !notes
+        notes
             .lowest_root(root)
-            .is_some_and(|root_note| notes.bass_note < root_note),
+            .is_none_or(|root_note| notes.bass_note >= root_note),
         8,
     );
 

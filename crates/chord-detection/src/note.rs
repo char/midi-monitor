@@ -24,13 +24,20 @@ pub enum Scale {
     Chromatic,
     Major,
     Minor,
+    HarmonicMinor,
+    MelodicMinor,
+    HarmonicMajor,
     Dorian,
     Phrygian,
     Lydian,
+    LydianAugmented,
     Mixolydian,
     Locrian,
-    HarmonicMinor,
+    Altered,
     PhrygianDominant,
+    WholeTone,
+    HalfWholeDiminished,
+    WholeHalfDiminished,
 }
 
 #[derive(Clone, Copy)]
@@ -237,18 +244,29 @@ pub fn scale_intervals(scale: Scale) -> &'static [usize] {
         Scale::Major => &[0, 2, 4, 5, 7, 9, 11],
         Scale::Minor => &[0, 2, 3, 5, 7, 8, 10],
         Scale::HarmonicMinor => &[0, 2, 3, 5, 7, 8, 11],
+        Scale::MelodicMinor => &[0, 2, 3, 5, 7, 9, 11],
+        Scale::HarmonicMajor => &[0, 2, 4, 5, 7, 8, 11],
         Scale::Dorian => &[0, 2, 3, 5, 7, 9, 10],
         Scale::Phrygian => &[0, 1, 3, 5, 7, 8, 10],
         Scale::Lydian => &[0, 2, 4, 6, 7, 9, 11],
+        Scale::LydianAugmented => &[0, 2, 4, 6, 8, 9, 11],
         Scale::Mixolydian => &[0, 2, 4, 5, 7, 9, 10],
         Scale::Locrian => &[0, 1, 3, 5, 6, 8, 10],
+        Scale::Altered => &[0, 1, 3, 4, 6, 8, 10],
         Scale::PhrygianDominant => &[0, 1, 4, 5, 7, 8, 10],
+        Scale::WholeTone => &[0, 2, 4, 6, 8, 10],
+        Scale::HalfWholeDiminished => &[0, 1, 3, 4, 6, 7, 9, 10],
+        Scale::WholeHalfDiminished => &[0, 2, 3, 5, 6, 8, 9, 11],
     }
 }
 
 fn scale_letter_steps(scale: Scale) -> Option<&'static [usize]> {
     match scale {
-        Scale::Chromatic => None,
+        Scale::Chromatic
+        | Scale::Altered
+        | Scale::WholeTone
+        | Scale::HalfWholeDiminished
+        | Scale::WholeHalfDiminished => None,
         _ => Some(&[0, 1, 2, 3, 4, 5, 6]),
     }
 }

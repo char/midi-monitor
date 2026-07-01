@@ -46,6 +46,8 @@ pub enum ScaleParam {
     HarmonicMinor,
     #[name = "Phrygian Dominant"]
     PhrygianDominant,
+    #[name = "Melodic Minor"]
+    MelodicMinor,
 }
 
 #[derive(ParamEnum)]
@@ -107,6 +109,7 @@ impl From<ScaleParam> for Scale {
             ScaleParam::Locrian => Self::Locrian,
             ScaleParam::HarmonicMinor => Self::HarmonicMinor,
             ScaleParam::PhrygianDominant => Self::PhrygianDominant,
+            ScaleParam::MelodicMinor => Self::MelodicMinor,
         }
     }
 }

@@ -1,6 +1,7 @@
 use crate::{MidiMonitorParams, MidiMonitorParamsParamId as P, NOTE_COUNT, note_meter_id};
 use midi_monitor_chord_detection::{
-    Analysis, SpellingContext, format_analysis, identify_analysis_in_context, roman_numeral, scale_intervals,
+    Analysis, SpellingContext, chord_scales, format_analysis, format_chord_scales, identify_analysis_in_context,
+    roman_numeral, scale_intervals,
 };
 use truce::prelude::*;
 
@@ -40,6 +41,7 @@ pub fn visuals() -> egui::Visuals {
 pub fn draw_editor(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) {
     let spelling = SpellingContext::new(state.root.value().into(), state.scale.value().into());
     let show_chord_label = state.chord_label.value();
+    let show_chord_scale = state.chord_scale.value();
     let show_piano = state.piano.value();
     let analysis = if show_chord_label {
         let active_notes: Vec<_> = (0..NOTE_COUNT)
@@ -77,7 +79,7 @@ pub fn draw_editor(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) 
             top_bar(ui, state);
             if show_chord_label {
                 ui.add_space(10.0);
-                chord_panel(ui, analysis.as_ref(), &spelling);
+                chord_panel(ui, analysis.as_ref(), &spelling, show_chord_scale);
             }
         });
 
@@ -100,7 +102,7 @@ fn top_bar(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) {
     });
 }
 
-fn chord_panel(ui: &mut egui::Ui, analysis: Option<&Analysis>, spelling: &SpellingContext) {
+fn chord_panel(ui: &mut egui::Ui, analysis: Option<&Analysis>, spelling: &SpellingContext, show_chord_scale: bool) {
     let width = ui.available_width().max(0.0);
     let name_size = (width * 0.12).clamp(20.0, 42.0);
     let roman_size = (name_size * 0.43).clamp(12.0, 18.0);
@@ -112,11 +114,9 @@ fn chord_panel(ui: &mut egui::Ui, analysis: Option<&Analysis>, spelling: &Spelli
                 .strong()
                 .color(FOREGROUND),
         );
-        if let Some(Analysis::Chord(chord)) = analysis
-            && let Some(roman) = roman_numeral(chord, spelling.root_pitch_class, spelling.scale)
-        {
+        if let Some(details) = analysis_details(analysis, spelling, show_chord_scale) {
             ui.add_space(2.0);
-            ui.label(egui::RichText::new(roman).size(roman_size).color(MUTED));
+            ui.label(egui::RichText::new(details).size(roman_size).color(MUTED));
         }
     });
 }
@@ -294,6 +294,22 @@ fn analysis_name(analysis: Option<&Analysis>, spelling: &SpellingContext) -> Str
         return String::new();
     };
     format_analysis(analysis, spelling)
+}
+
+fn analysis_details(analysis: Option<&Analysis>, spelling: &SpellingContext, show_chord_scale: bool) -> Option<String> {
+    let Analysis::Chord(chord) = analysis? else {
+        return None;
+    };
+
+    let mut details = Vec::new();
+    if let Some(roman) = roman_numeral(chord, spelling.root_pitch_class, spelling.scale) {
+        details.push(roman);
+    }
+    if show_chord_scale && let Some(scales) = format_chord_scales(&chord_scales(chord), spelling) {
+        details.push(scales);
+    }
+
+    (!details.is_empty()).then(|| details.join(" · "))
 }
 
 fn root_dropdown(ui: &mut egui::Ui, state: &PluginContext<MidiMonitorParams>) {
